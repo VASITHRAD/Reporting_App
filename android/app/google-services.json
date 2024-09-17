@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "169041841984",
+    "firebase_url": "https://reporting-app-6e7f9-default-rtdb.firebaseio.com",
+    "project_id": "reporting-app-6e7f9",
+    "storage_bucket": "reporting-app-6e7f9.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:169041841984:android:a6f494a86dfdb04eaaf4a5",
+        "android_client_info": {
+          "package_name": "com.example.reportingapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "169041841984-hhmjtculkh74thcjojpdfo6vtd8s5js7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD_hSInAnAG1XEHsWNXIyijUutD2LgOoSU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "169041841984-hhmjtculkh74thcjojpdfo6vtd8s5js7.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
