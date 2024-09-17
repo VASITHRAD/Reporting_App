@@ -67,14 +67,18 @@ class _MapScreenState extends State<MapScreen> {
         final newComplaints = <String, List<Map<String, dynamic>>>{};
 
         data.forEach((key, value) {
+          print(data);
+          print(
+              "___________________________________________________________________________________");
           final complaint = value as Map<dynamic, dynamic>;
           final areaName = complaint['area_name'];
           final lat = complaint['location']['lat'];
           final lon = complaint['location']['lon'];
-          final uniqueNumber = complaint['unique_number'];
+          // final uniqueNumber = complaint['unique_number'];
           final description = complaint['incident_description'];
-          final userUid = complaint['user_uid'];
-
+          final userUid = complaint['uid'];
+          final reply = complaint['reply'];
+          final post_id = complaint['post_id'];
           if (areaName != null && lat != null && lon != null) {
             if (!newMarkedAreas.containsKey(areaName)) {
               newMarkedAreas[areaName] = LatLng(lat, lon);
@@ -91,8 +95,10 @@ class _MapScreenState extends State<MapScreen> {
             }
             newComplaints[areaName]!.add({
               'incident_description': description,
-              'unique_number': uniqueNumber,
+              // 'unique_number': uniqueNumber,
               'user_uid': userUid,
+              'reply': reply ?? "No reply from the government",
+              'post_id': post_id
             });
           }
         });
@@ -160,13 +166,14 @@ class _MapScreenState extends State<MapScreen> {
     if (monthlyCount >= 3) {
       throw Exception('Complaint limit reached for this month.');
     }
-
+// guess 1
     final newComplaint = {
       'area_name': areaName,
       'incident_description': description,
       'unique_number': uniqueNumber,
       'timestamp': DateTime.now().toIso8601String(),
       'user_uid': uid,
+      'reply': "No reply"
     };
 
     final dbRef = FirebaseDatabase.instance.ref().child('data').push();
@@ -304,40 +311,6 @@ class _MapScreenState extends State<MapScreen> {
                                         style: TextStyle(
                                           color: const Color.fromARGB(
                                               255, 0, 0, 0),
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                          MarkerLayer(
-                            markers: _markedAreas.entries.map((entry) {
-                              final areaName = entry.key;
-                              final point = entry.value;
-                              return Marker(
-                                point: point,
-                                width: 80,
-                                height: 80,
-                                child: GestureDetector(
-                                  onTap: () => _showComplaints(areaName),
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: _getMarkerColor(areaName)
-                                          .withOpacity(0.5),
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        _areaReportCounts[areaName]
-                                                .toString() ??
-                                            '0',
-                                        style: TextStyle(
-                                          color: const Color.fromARGB(
-                                              255, 19, 19, 19),
                                           fontSize: 12,
                                           fontWeight: FontWeight.bold,
                                         ),
@@ -504,47 +477,46 @@ class _MapScreenState extends State<MapScreen> {
 
   Future<void> _replyToComplaint(
       String area, Map<String, dynamic> complaint, String replyText) async {
-    print(complaint);
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    print(uid);
+    final email = FirebaseAuth.instance.currentUser?.email;
 
-    if (uid == null) {
+    if (uid == null || email == null) {
       throw Exception('User not authenticated.');
     }
 
-    // Extract the complaint key
-    final complaintKey = uid as String?;
+    // Only allow the government email to reply
+    if (email != 'waterresq@gmail.com') {
+      throw Exception('Only the government can reply.');
+    }
+
+    final complaintKey = complaint['post_id'] as String?;
     if (complaintKey == null) {
       throw Exception('Complaint key is missing.');
     }
 
-    // Reference to the specific complaint's replies
-    final replyRef = FirebaseDatabase.instance
-        .ref()
-        .child('data')
-        .child(complaintKey)
-        .child('replies')
-        .push();
+    // Reference to the specific complaint's reply field
+    final complaintRef =
+        FirebaseDatabase.instance.ref().child('data').child(complaintKey);
 
-    // Set the reply data
-    await replyRef.set({
-      'user_uid': uid,
-      'reply_text': replyText,
-      'timestamp': DateTime.now().toIso8601String(),
+    // Update the 'reply' field with the government user's reply
+    await complaintRef.update({
+      // 'reply': {
+      //   'reply_from': email, // Government email
+      //   'reply_text': replyText, // Actual reply
+      //   'timestamp': DateTime.now().toIso8601String(),
+      // },
+      'reply': replyText,
     });
 
-    print('Reply saved successfully');
+    print('Reply saved successfully and replaced the original reply field.');
   }
 
   void _showComplaints(String area) {
-    final complaints = _complaints[area] ?? [];
+    final complaints = _complaints[area] ?? []; // Fetch complaints for the area
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    final email = FirebaseAuth.instance.currentUser?.email ?? '';
+    final email = FirebaseAuth.instance.currentUser?.email;
     final specialEmail = 'waterresq@gmail.com'; // Government email
-    print(uid);
-    print(complaints);
-    print(
-        "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -555,58 +527,49 @@ class _MapScreenState extends State<MapScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        content: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: complaints.map((complaint) {
-            final complaintUid = complaint['user_uid'] as String?;
-            final complaintUniqueNumber = complaint['unique_number'] as int?;
-            final complaintKey = complaint['key'] as String?;
-            final replies = complaint['replies'] as Map<dynamic, dynamic>?;
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: complaints.map((complaint) {
+              // For each complaint in the area
+              final complaintUid = complaint['uid'] as String?;
+              final replies =
+                  complaint['replies'] as Map<dynamic, dynamic>? ?? {};
+              final canReplyToComplaint =
+                  email == specialEmail || uid == complaintUid;
 
-            print('Complaint Key: $complaintKey'); // Debugging statement
-
-            final canReplyToComplaint = email == specialEmail ||
-                (uid == complaintUid && complaintUniqueNumber == 0);
-
-            return Container(
-              margin: const EdgeInsets.only(bottom: 8.0),
-              padding: const EdgeInsets.all(8.0),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey, width: 1.0),
-                borderRadius: BorderRadius.circular(4.0),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(complaint['incident_description'] ?? 'No description'),
-                  if (replies == null || replies.isEmpty)
-                    Text('No reply from the government.'),
-                  if (replies != null)
-                    ...replies.entries.map((entry) {
-                      final reply = entry.value as Map<dynamic, dynamic>?;
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Reply from ${reply?['user_uid'] ?? 'Unknown'}'),
-                          Text(reply?['reply_text'] ?? 'No reply text'),
-                          SizedBox(height: 8.0),
-                        ],
-                      );
-                    }).toList(),
-                  if (canReplyToComplaint)
-                    TextButton(
-                      onPressed: () {
-                        print(
-                            'Reply button pressed for complaint key: $complaintKey');
-                        _showReplyDialog(area, complaint);
-                      },
-                      child: Text('Reply'),
+              return Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 8.0),
+                padding: const EdgeInsets.all(8.0),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey, width: 1.0),
+                  borderRadius: BorderRadius.circular(4.0),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      complaint['incident_description'] ?? 'No description',
+                      style: TextStyle(fontSize: 20),
                     ),
-                ],
-              ),
-            );
-          }).toList(),
+                    Text(
+                      "Reply: ${complaint['reply']}" ??
+                          'No reply from the government',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    if (canReplyToComplaint)
+                      TextButton(
+                        onPressed: () {
+                          _showReplyDialog(area, complaint);
+                        },
+                        child: Text('Reply'),
+                      ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
         ),
         actions: [
           TextButton(

@@ -67,7 +67,7 @@ class _NearbyIncidentsPageState extends State<NearbyIncidentsPage> {
             final areaName = complaint['area_name'] as String?;
             final lat = complaint['location']['lat'] as double?;
             final lon = complaint['location']['lon'] as double?;
-
+            final reply = complaint['reply'];
             if (areaName != null && lat != null && lon != null) {
               final distance = Geolocator.distanceBetween(
                 currentLat,
@@ -82,6 +82,7 @@ class _NearbyIncidentsPageState extends State<NearbyIncidentsPage> {
                   'areaName': areaName,
                   'incidentDescription': complaint['incident_description'],
                   'distance': distance,
+                  'reply': reply
                 });
               }
             }

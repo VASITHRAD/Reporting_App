@@ -13,6 +13,7 @@
     </queries>
 
     <application
+    
         android:label="reportingapp"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">

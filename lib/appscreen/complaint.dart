@@ -42,26 +42,6 @@ class _ReportComplaintPageState extends State<ReportComplaintPage> {
     }
   }
 
-  // void _onAreaSelected(String selectedArea) async {
-  //   final url =
-  //       'https://nominatim.openstreetmap.org/search?q=$selectedArea&format=json&addressdetails=1';
-  //   final response = await http.get(Uri.parse(url));
-  //   if (response.statusCode == 200) {
-  //     final List<dynamic> data = json.decode(response.body);
-  //     if (data.isNotEmpty) {
-  //       final location = data[0];
-  //       final LatLng point = LatLng(
-  //           double.parse(location['lat']), double.parse(location['lon']));
-  //       setState(() {
-  //         _selectedArea = point;
-  //         _markedAreas[selectedArea] = point;
-  //         _areaReportCounts[selectedArea] =
-  //             (_areaReportCounts[selectedArea] ?? 0) + 1;
-  //         _validateForm();
-  //       });
-  //     }
-  //   }
-  // }
   void _onAreaSelected(String selectedArea) async {
     final url =
         'https://nominatim.openstreetmap.org/search?q=$selectedArea&format=json&addressdetails=1';
@@ -88,17 +68,6 @@ class _ReportComplaintPageState extends State<ReportComplaintPage> {
     }
   }
 
-  Color _getMarkerColor(String area) {
-    int count = _areaReportCounts[area] ?? 0;
-    if (count > 2) {
-      return Colors.red;
-    } else if (count == 1) {
-      return Colors.yellow;
-    } else {
-      return Colors.green;
-    }
-  }
-
   void _validateForm() {
     setState(() {
       _isFormValid = _selectedCrime != null &&
@@ -107,48 +76,20 @@ class _ReportComplaintPageState extends State<ReportComplaintPage> {
     });
   }
 
-  // void _submitComplaint() {
-  //   final areaName = _areaController.text;
-  //   final incidentDescription = _incidentController.text;
-  //   final crime = _selectedCrime;
-  //   if (areaName.isNotEmpty && incidentDescription.isNotEmpty) {
-  //     print(
-  //         "**************************************************************************");
-  //     print(_selectedCrime);
-  //     print(areaName);
-  //     print(incidentDescription);
-  //     final newComplaint = {
-  //       'crime_type': _selectedCrime,
-  //       'area_name': areaName,
-  //       'incident_description': incidentDescription,
-  //       'location': {
-  //         'lat': _selectedArea?.latitude,
-  //         'lon': _selectedArea?.longitude,
-  //       },
-  //       'timestamp': DateTime.now().toIso8601String(),
-  //     };
-
-  //     // Store the complaint under "data" branch
-  //     _dbRef.push().set(newComplaint);
-
-  //     setState(() {
-  //       _complaints[areaName] =
-  //           (_complaints[areaName] ?? []) + [incidentDescription];
-  //       _areaController.clear();
-  //       _incidentController.clear();
-  //       _selectedCrime = null;
-  //       _selectedArea = null;
-  //       _isFormValid = false;
-  //     });
-  //   }
-  // }
   void _submitComplaint() {
     final areaName = _areaController.text;
     final incidentDescription = _incidentController.text;
     final crime = _selectedCrime;
     final uid = FirebaseAuth.instance.currentUser?.uid;
+    final reply = "No reply from the government";
+
     if (areaName.isNotEmpty && incidentDescription.isNotEmpty) {
+      // Generate a unique key for the complaint
+      final newComplaintRef = _dbRef.push();
+      final postId = newComplaintRef.key; // Get the generated unique ID
+
       final newComplaint = {
+        'post_id': postId,
         'crime_type': crime,
         'area_name': areaName,
         'incident_description': incidentDescription,
@@ -158,11 +99,11 @@ class _ReportComplaintPageState extends State<ReportComplaintPage> {
         },
         'timestamp': DateTime.now().toIso8601String(),
         'uid': uid,
-        'replies': {}
+        'reply': reply,
       };
 
-      // Push the complaint under "data" branch with a unique key
-      _dbRef.push().set(newComplaint);
+      // Set the new complaint under the unique key
+      newComplaintRef.set(newComplaint);
 
       // Update the local state
       setState(() {
